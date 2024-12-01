@@ -26,6 +26,8 @@ hit_record :: struct {
 	t : f32,
 	front_face : bool,
 	mat : material,
+    u : f32,
+    v : f32,
 }
 
 sphere :: struct {
@@ -45,50 +47,72 @@ interval :: struct {
 	max : f32,
 }
 
-interval_size :: proc(i : interval) -> f32 {
-	return i.max - i.min
-}
-interval_contains :: proc(i : interval, x: f32) -> bool {
-	return i.min <= x && x <= i.max
-}
-interval_surrounds :: proc(i : interval, x: f32) -> bool {
-	return i.min < x && x < i.max
-}
+texture_lib : [dynamic]rl.Image
+
 
 main :: proc() {
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Odini")
 	defer rl.CloseWindow()
-	tex : rl.Texture
+	render_tex : rl.Texture
 
+    texture_lib_load()
+
+    // TEXTURES
+    tex_checkerboard : texture = {
+        func = texture_checkerboard,
+        albedo = {0.1,0.1,0.1},
+        albedo_secondary = {1.0,1.0,1.0},
+        scale = 0.3,
+    }
+    tex_image : texture = {
+        func = texture_image,
+        albedo = {0.1,0.1,0.1},
+        albedo_secondary = {1.0,1.0,1.0},
+        scale = 0.3,
+        image_idx = 0,
+    }
+    tex_solid : texture = {
+        func = texture_solid,
+        albedo = {1.0,1.0,1.0},
+        albedo_secondary = {1.0,1.0,1.0},
+        scale = 1.0,
+    }
+
+    // MATERIALS
 	clay : material = {
 		scatter = scatter_lambertian,
-		albedo = {0.65, 0.55, 0.45},
+		albedo = {1.0, 1.0, 1.0},
 		fuzz = 0.1,
 		ior = 1.0,
+        tex = tex_image,
 	}
 	ground : material = {
 		scatter = scatter_lambertian,
 		albedo = {0.65, 0.65, 0.65},
 		fuzz = 0.1,
 		ior = 1.0,
+        tex = tex_checkerboard,
 	}
 	metal : material = {
 		scatter = scatter_metal,
 		albedo = {0.85, 0.85, 0.45},
-		fuzz = 0.1,
+		fuzz = 0.4,
 		ior = 1.0,
+        tex = tex_solid,
 	}
 	glass : material = {
 		scatter = scatter_glass,
 		albedo = {1, 1, 1},
 		fuzz = 0.1,
 		ior = 1.5,
+        tex = tex_solid,
 	}
 	glass_air : material = {
 		scatter = scatter_glass,
 		albedo = {1, 1, 1},
 		fuzz = 0.1,
 		ior = .67,
+        tex = tex_solid,
 	}
 
 	sphere1 : hittable = {
@@ -124,11 +148,11 @@ main :: proc() {
 	append(&world, sphere_metal)
 	append(&world, sphere_big)
 
-	tex = render(world)
+	render_tex = render(world)
 
 	rl.SetTargetFPS(60)      
 	for !rl.WindowShouldClose() { // Detect window close button or ESC key
-		draw(tex)
+		draw(render_tex)
 	}
 }
 
@@ -146,6 +170,8 @@ hit_world :: proc(world: [dynamic]hittable, r : ray, ray_t : interval, rec : ^hi
             rec.t = temp_rec.t;
             rec.front_face = temp_rec.front_face; // is there a better way?
             rec.mat = temp_rec.mat
+            rec.u = temp_rec.u
+            rec.v = temp_rec.v
         }
     }
     return hit_anything;
@@ -202,6 +228,8 @@ sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
     outward_normal : rl.Vector3 = (rec.p - s.center) / s.radius
     rec.front_face = rl.Vector3DotProduct(r.dir, outward_normal) < 0.0
     rec.normal = rec.front_face ? outward_normal : -outward_normal
+    rec.u, rec.v = get_sphere_uv(outward_normal)
+    //fmt.println("u:", rec.u, "v:", rec.v)
     rec.mat = s.mat
 
     return true
@@ -216,8 +244,8 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
    
     cam : camera
     // Camera
-    max_depth           : i32 = 10
-    samples_per_pixel   : i32 = 16
+    max_depth           : i32 = 12
+    samples_per_pixel   : i32 = 200
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)
@@ -255,7 +283,7 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
     cam.defocus_disk_u = u * cam.defocus_radius
     cam.defocus_disk_v = v * cam.defocus_radius
 
-    tex : rl.Texture = rl.LoadTextureFromImage(img)
+    render_tex : rl.Texture = rl.LoadTextureFromImage(img)
     for h : i32 = 0; h < WINDOW_HEIGHT; h += 1 {
         for w : i32 = 0; w < WINDOW_WIDTH; w += 1 {
         	pixel_color : rl.Vector3 = {0,0,0}
@@ -267,11 +295,11 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
 			rl.ImageDrawPixel(&img, w, h, rl_color)
         }
 		//fmt.print(" ", h)
-        rl.UpdateTexture(tex, img.data)
-        draw(tex)
+        rl.UpdateTexture(render_tex, img.data)
+        draw(render_tex)
         if rl.WindowShouldClose() do os.exit(0)
     }
-    return tex
+    return render_tex
 }
 
 get_ray :: proc(cam : camera, w : i32, h : i32) -> ray {
@@ -299,7 +327,7 @@ defocus_disk_sample :: proc(cam : camera) -> rl.Vector3 {
 draw :: proc(tex : rl.Texture) {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
-	rl.ClearBackground(rl.RAYWHITE)
-	rl.DrawText("DEBUG", 300, 10, 10, rl.GRAY)
+	//rl.ClearBackground(rl.RAYWHITE)
+	//rl.DrawText("DEBUG", 300, 10, 10, rl.GRAY)
 	rl.DrawTexture(tex, 0, 0, rl.WHITE)
 }

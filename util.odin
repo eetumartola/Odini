@@ -43,6 +43,16 @@ random_on_hemisphere :: proc(normal : rl.Vector3) -> rl.Vector3 {
     }
 }
 
+interval_size :: proc(i : interval) -> f32 {
+	return i.max - i.min
+}
+interval_contains :: proc(i : interval, x: f32) -> bool {
+	return i.min <= x && x <= i.max
+}
+interval_surrounds :: proc(i : interval, x: f32) -> bool {
+	return i.min < x && x < i.max
+}
+
 linear_to_gamma :: proc(lin : f32) -> f32 {
 	if (lin > 0.0) {
 		return math.sqrt_f32(lin)
