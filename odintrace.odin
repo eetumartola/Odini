@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "core:math"
 import "core:math/rand"
 import rl "vendor:raylib"
@@ -123,7 +124,7 @@ main :: proc() {
 	append(&world, sphere_metal)
 	append(&world, sphere_big)
 
-	tex = init(world)
+	tex = render(world)
 
 	rl.SetTargetFPS(60)      
 	for !rl.WindowShouldClose() { // Detect window close button or ESC key
@@ -206,19 +207,17 @@ sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
     return true
 }
 
-init :: proc(world : [dynamic]hittable) -> rl.Texture {
+render :: proc(world : [dynamic]hittable) -> rl.Texture {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
-
-    g_debug_line = 0
+    g_debug_line = 0 // keeping count of how many debug lines have been drawn onto the screen
 
     img : rl.Image = rl.GenImageColor(WINDOW_WIDTH, WINDOW_HEIGHT, rl.BLACK)
    
-
     cam : camera
     // Camera
-    max_depth           : i32 = 12
-    samples_per_pixel   : i32 = 96
+    max_depth           : i32 = 10
+    samples_per_pixel   : i32 = 16
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)
@@ -256,6 +255,7 @@ init :: proc(world : [dynamic]hittable) -> rl.Texture {
     cam.defocus_disk_u = u * cam.defocus_radius
     cam.defocus_disk_v = v * cam.defocus_radius
 
+    tex : rl.Texture = rl.LoadTextureFromImage(img)
     for h : i32 = 0; h < WINDOW_HEIGHT; h += 1 {
         for w : i32 = 0; w < WINDOW_WIDTH; w += 1 {
         	pixel_color : rl.Vector3 = {0,0,0}
@@ -264,14 +264,13 @@ init :: proc(world : [dynamic]hittable) -> rl.Texture {
         		pixel_color += ray_color(r, max_depth, world) * pixel_samples_scale
         	}
         	rl_color : rl.Color = rl.ColorFromNormalized({linear_to_gamma(pixel_color.x), linear_to_gamma(pixel_color.y), linear_to_gamma(pixel_color.z), 1.0})
-			//rl.DrawPixel(w, h, rl_color)
 			rl.ImageDrawPixel(&img, w, h, rl_color)
         }
-		fmt.print(" ", h)
-  		//rl.DrawText("DEBUG", 300, h*10, 10, rl.GRAY)
+		//fmt.print(" ", h)
+        rl.UpdateTexture(tex, img.data)
+        draw(tex)
+        if rl.WindowShouldClose() do os.exit(0)
     }
-    //print_vec({pixel_samples_scale, 0, 0})
-	tex : rl.Texture = rl.LoadTextureFromImage(img)
     return tex
 }
 
@@ -295,11 +294,6 @@ defocus_disk_sample :: proc(cam : camera) -> rl.Vector3 {
     // Returns a random point in the camera defocus disk.
     p : rl.Vector3 = random_in_unit_disk()
     return cam.center + (p[0] * cam.defocus_disk_u) + (p[1] * cam.defocus_disk_v)
-}
-print_vec :: proc(vec : rl.Vector3) {
-	height : i32 = 10 * g_debug_line
-	g_debug_line += 1
-  	rl.DrawText(rl.TextFormat("%f %f %f", vec.x, vec.y, vec.z ), 100, height, 10, rl.GRAY)
 }
 
 draw :: proc(tex : rl.Texture) {

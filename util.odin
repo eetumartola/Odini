@@ -49,3 +49,9 @@ linear_to_gamma :: proc(lin : f32) -> f32 {
 	}
 	return 0.0
 }
+
+print_vec :: proc(vec : rl.Vector3) {
+	height : i32 = 10 * g_debug_line
+	g_debug_line += 1
+  	rl.DrawText(rl.TextFormat("%f %f %f", vec.x, vec.y, vec.z ), 100, height, 10, rl.GRAY)
+}
