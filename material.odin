@@ -54,7 +54,7 @@ scatter_lambertian :: proc( r_in : ray, rec : hit_record) -> (attenuation : rl.V
 	if (vec3_near_zero(scatter_direction)) {
 		scatter_direction = rec.normal
 	}
-	scattered = ray{rec.p, scatter_direction}
+	scattered = ray{rec.p, scatter_direction, r_in.time}
 	attenuation = rec.mat.tex.func(rec.mat.tex, rec.u, rec.v, rec.p)
 	attenuation *= rec.mat.albedo
 
@@ -65,7 +65,7 @@ scatter_metal :: proc( r_in : ray, rec : hit_record) -> (attenuation : rl.Vector
 	fuzz : f32 = rec.mat.fuzz
 	reflected : rl.Vector3 = vec3_reflect(r_in.dir, rec.normal)
 	reflected = rl.Vector3Normalize(reflected) + (fuzz * random_unit_vector())
-	scattered = ray{rec.p, reflected}
+	scattered = ray{rec.p, reflected, r_in.time}
 	attenuation = rec.mat.albedo
 
 	return attenuation, scattered
@@ -88,7 +88,7 @@ scatter_glass :: proc(r_in : ray, rec : hit_record) -> (attenuation : rl.Vector3
 	else {
 		direction = vec3_refract(unit_direction, rec.normal, ri)
 	}
-	scattered = ray{rec.p, direction}
+	scattered = ray{rec.p, direction, r_in.time}
 
 	return attenuation, scattered
 }

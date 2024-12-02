@@ -14,6 +14,7 @@ g_debug_line : i32 = 0
 ray :: struct {
 	orig : rl.Vector3,
 	dir  : rl.Vector3,
+    time : f32,
 }
 
 ray_at :: proc(ray: ray, t : f32) -> rl.Vector3 {
@@ -31,7 +32,7 @@ hit_record :: struct {
 }
 
 sphere :: struct {
-	center : rl.Vector3,
+	center : ray,
 	radius : f32,
 	mat : material,
 }
@@ -95,7 +96,7 @@ main :: proc() {
 	metal : material = {
 		scatter = scatter_metal,
 		albedo = {0.85, 0.85, 0.45},
-		fuzz = 0.4,
+		fuzz = 0.2,
 		ior = 1.0,
         tex = tex_solid,
 	}
@@ -116,27 +117,42 @@ main :: proc() {
 
 	sphere1 : hittable = {
 		name = "sphere",
-		data = sphere{{0.0, 0.0, -1.2}, 0.5, clay},
+		data = sphere{
+            center = {{0.0, 0.0, -1.2}, {0.0, 0.0, 0.0}, 0.0},
+            radius = 0.5,
+            mat = clay},
 		hit_func = sphere_hit,
 	}
 	sphere_glass_outer : hittable = {
 		name = "sphere_go",
-		data = sphere{{-1.0, 0.0, -1.0}, 0.5, glass},
+		data = sphere{
+            center = {{-1.0, 0.0, -1.0}, {0.0, 0.0, 0.0}, 0.0},
+            radius = 0.5,
+            mat = glass},
 		hit_func = sphere_hit,
 	}
 	sphere_glass_inner : hittable = {
 		name = "sphere_gi",
-		data = sphere{{-1.0, 0.0, -1.0}, 0.4, glass_air},
+		data = sphere{
+            center = {{-1.0, 0.0, -1.0}, {0.0, 0.0, 0.0}, 0.0},
+            radius = 0.4,
+            mat = glass_air},
 		hit_func = sphere_hit,
 	}
 	sphere_metal : hittable = {
 		name = "sphere",
-		data = sphere{{1.0, 0.0, -1.0}, 0.5, metal},
+		data = sphere{
+            center = {{1.0, 0.0, -1.0}, {0.1, 0.0, 0.2}, 0.0},
+            radius = 0.5,
+            mat =  metal},
 		hit_func = sphere_hit,
 	}
 	sphere_big : hittable = {
 		name = "sphere_big",
-		data = sphere{{0.0, -100.5, -1.0}, 100.0, ground},
+		data = sphere{
+            center = {{0.0, -100.5, -1.0}, {0.0, 0.0, 0.0}, 0.0},
+            radius = 100.0,
+            mat = ground},
 		hit_func = sphere_hit,
 	}
 
@@ -202,7 +218,8 @@ ray_color :: proc(r : ray, depth : i32, world : [dynamic]hittable) -> rl.Vector3
 }
 
 sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool {
-    oc : rl.Vector3 = s.center - r.orig
+    current_center : rl.Vector3 = ray_at(s.center, r.time)
+    oc : rl.Vector3 = current_center - r.orig
     a  : f32 = rl.Vector3LengthSqr(r.dir)
     h  : f32 = rl.Vector3DotProduct(r.dir, oc)
     c  : f32 = rl.Vector3LengthSqr(oc) - s.radius * s.radius
@@ -224,7 +241,7 @@ sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
 
     rec.t = root
     rec.p = ray_at(r, rec.t)
-    outward_normal : rl.Vector3 = (rec.p - s.center) / s.radius
+    outward_normal : rl.Vector3 = (rec.p - current_center) / s.radius
     rec.front_face = rl.Vector3DotProduct(r.dir, outward_normal) < 0.0
     rec.normal = rec.front_face ? outward_normal : -outward_normal
     rec.u, rec.v = get_sphere_uv(outward_normal)
@@ -243,7 +260,7 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
     cam : camera
     // Camera
     max_depth           : i32 = 9
-    samples_per_pixel   : i32 = 12
+    samples_per_pixel   : i32 = 32
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)
@@ -251,7 +268,7 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
     lookfrom            : rl.Vector3 = {-2.0, 2.0, 1.0}  // Point camera is looking from
     lookat              : rl.Vector3 = {0.0, 0.0, -1.0}  // Point camera is looking at
     vup                 : rl.Vector3 = {0.0, 1.0, 0.0}   // Camera-relative "up" direction
-    defocus_angle       : f32 = 3.0;  // Variation angle of rays through each pixel
+    defocus_angle       : f32 = 1.0;  // Variation angle of rays through each pixel
     focus_dist          : f32 = 3.2; // Distance from camera lookfrom point to plane of perfect focus
 
     cam.center          = lookfrom
@@ -308,8 +325,10 @@ get_ray :: proc(cam : camera, w : i32, h : i32) -> ray {
 
     ray_origin     : rl.Vector3 = cam.defocus_radius <= 0 ? cam.center : defocus_disk_sample(cam)
     ray_direction  : rl.Vector3 = pixel_sample - ray_origin
+    ray_time       :f32 = rand.float32()
 
-    return ray{ray_origin, ray_direction}
+
+    return ray{ray_origin, ray_direction, ray_time}
 }
 
 sample_square :: proc() -> rl.Vector3 {
