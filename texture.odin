@@ -14,6 +14,8 @@ texture :: struct {
 	image_name : string, //map key
 }
 
+texture_lib := make(map[string]rl.Image)
+
 texture_solid :: proc(tex : texture, u : f32, v : f32, p : rl.Vector3) -> rl.Vector3 {
 	return tex.albedo
 }

@@ -35,21 +35,20 @@ sphere :: struct {
 	center : ray,
 	radius : f32,
 	mat : material,
+    bbox : aabb,
 }
 
 hittable :: struct {
 	name : string,
 	data : sphere,
-	hit_func : proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool
+	hit_func : proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool,
+    bbox_func : proc(s : sphere),
 }
 
-interval :: struct {
-	min : f32,
-	max : f32,
+hittable_list :: struct {
+    objects : [dynamic]hittable,
+    bbox : aabb,
 }
-
-texture_lib := make(map[string]rl.Image)
-
 
 main :: proc() {
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Odini")
@@ -67,12 +66,12 @@ main :: proc() {
 	}
 }
 
-hit_world :: proc(world: [dynamic]hittable, r : ray, ray_t : interval, rec : ^hit_record) -> bool {
+hit_world :: proc(world: hittable_list, r : ray, ray_t : interval, rec : ^hit_record) -> bool {
     temp_rec : hit_record;
     hit_anything : bool = false;
     closest_so_far : f32 = ray_t.max;
 
-    for h in world {
+    for h in world.objects {
         if (h.hit_func(h.data, r, interval{ray_t.min, closest_so_far}, &temp_rec)) {
             hit_anything = true;
             closest_so_far = temp_rec.t;
@@ -88,18 +87,16 @@ hit_world :: proc(world: [dynamic]hittable, r : ray, ray_t : interval, rec : ^hi
     return hit_anything;
 }
 
-ray_color :: proc(r : ray, depth : i32, world : [dynamic]hittable) -> rl.Vector3 {
+ray_color :: proc(r : ray, depth : i32, world : hittable_list) -> rl.Vector3 {
 	if (depth <= 0) {
 		return {0,0,0}
 	}
 	rec : hit_record
 	if (hit_world(world, r, interval{0.0002, 10000000.0}, &rec)) {
-	   	//fmt.println("hit_world")
 		scattered : ray
 		attenuation : rl.Vector3
 		mat_this := rec.mat
 		attenuation, scattered = mat_this.scatter(r, rec)
-	   	//fmt.println("hit_world scattered")
 
 		if (true) {
             return attenuation * ray_color(scattered, depth - 1, world)
@@ -113,7 +110,7 @@ ray_color :: proc(r : ray, depth : i32, world : [dynamic]hittable) -> rl.Vector3
 	return col
 }
 
-sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool {
+hit_sphere :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool {
     current_center : rl.Vector3 = ray_at(s.center, r.time)
     oc : rl.Vector3 = current_center - r.orig
     a  : f32 = rl.Vector3LengthSqr(r.dir)
@@ -146,7 +143,7 @@ sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
     return true
 }
 
-render :: proc(world : [dynamic]hittable) -> rl.Texture {
+render :: proc(world : hittable_list) -> rl.Texture {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
     g_debug_line = 0 // keeping count of how many debug lines have been drawn onto the screen
@@ -156,7 +153,7 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
     cam : camera
     // Camera
     max_depth           : i32 = 9
-    samples_per_pixel   : i32 = 16
+    samples_per_pixel   : i32 = 8
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)

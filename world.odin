@@ -4,7 +4,7 @@ import rl "vendor:raylib"
 import "core:math"
 import "core:math/rand"
 
-setup_world :: proc() -> [dynamic]hittable {
+setup_world :: proc() -> hittable_list {
     
     // TEXTURES
     tex_checkerboard : texture = {
@@ -70,7 +70,7 @@ setup_world :: proc() -> [dynamic]hittable {
             center = {{0.0, 0.0, -1.2}, {0.0, 0.0, 0.0}, 0.0},
             radius = 0.5,
             mat = clay},
-		hit_func = sphere_hit,
+		hit_func = hit_sphere,
 	}
 	sphere_glass_outer : hittable = {
 		name = "sphere_go",
@@ -78,7 +78,7 @@ setup_world :: proc() -> [dynamic]hittable {
             center = {{-1.0, 0.0, -1.0}, {0.0, 0.0, 0.0}, 0.0},
             radius = 0.5,
             mat = glass},
-		hit_func = sphere_hit,
+		hit_func = hit_sphere,
 	}
 	sphere_glass_inner : hittable = {
 		name = "sphere_gi",
@@ -86,7 +86,7 @@ setup_world :: proc() -> [dynamic]hittable {
             center = {{-1.0, 0.0, -1.0}, {0.0, 0.0, 0.0}, 0.0},
             radius = 0.4,
             mat = glass_air},
-		hit_func = sphere_hit,
+		hit_func = hit_sphere,
 	}
 	sphere_metal : hittable = {
 		name = "sphere",
@@ -94,7 +94,7 @@ setup_world :: proc() -> [dynamic]hittable {
             center = {{1.0, 0.0, -1.0}, {0.1, 0.0, 0.2}, 0.0},
             radius = 0.5,
             mat =  metal},
-		hit_func = sphere_hit,
+		hit_func = hit_sphere,
 	}
 	sphere_big : hittable = {
 		name = "sphere_big",
@@ -102,15 +102,16 @@ setup_world :: proc() -> [dynamic]hittable {
             center = {{0.0, -100.5, -1.0}, {0.0, 0.0, 0.0}, 0.0},
             radius = 100.0,
             mat = ground},
-		hit_func = sphere_hit,
+		hit_func = hit_sphere,
 	}
 
-	world : [dynamic]hittable
-	append(&world, sphere1)
-	append(&world, sphere_glass_outer)
-	append(&world, sphere_glass_inner)
-	append(&world, sphere_metal)
-	append(&world, sphere_big)
+	world : hittable_list
+	//world.objects : [dynamic]hittable
+	append(&world.objects, sphere1)
+	append(&world.objects, sphere_glass_outer)
+	append(&world.objects, sphere_glass_inner)
+	append(&world.objects, sphere_metal)
+	append(&world.objects, sphere_big)
 
     return world
 }
