@@ -47,8 +47,7 @@ interval :: struct {
 	max : f32,
 }
 
-texture_lib : [dynamic]rl.Image
-
+texture_lib := make(map[string]rl.Image)
 
 main :: proc() {
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Odini")
@@ -69,7 +68,7 @@ main :: proc() {
         albedo = {0.1,0.1,0.1},
         albedo_secondary = {1.0,1.0,1.0},
         scale = 0.3,
-        image_idx = 0,
+        image_name = "world",
     }
     tex_solid : texture = {
         func = texture_solid,
@@ -229,7 +228,6 @@ sphere_hit :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
     rec.front_face = rl.Vector3DotProduct(r.dir, outward_normal) < 0.0
     rec.normal = rec.front_face ? outward_normal : -outward_normal
     rec.u, rec.v = get_sphere_uv(outward_normal)
-    //fmt.println("u:", rec.u, "v:", rec.v)
     rec.mat = s.mat
 
     return true
@@ -244,8 +242,8 @@ render :: proc(world : [dynamic]hittable) -> rl.Texture {
    
     cam : camera
     // Camera
-    max_depth           : i32 = 12
-    samples_per_pixel   : i32 = 200
+    max_depth           : i32 = 9
+    samples_per_pixel   : i32 = 12
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)
