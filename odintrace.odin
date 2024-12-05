@@ -60,6 +60,7 @@ threadinfo :: struct  {
     numthreads : int,
     world : hittable_list,
     image : ^rl.Image,
+    texture : ^rl.Texture,
 }
 
 worker :: proc (t: thread.Task) {
@@ -69,7 +70,9 @@ worker :: proc (t: thread.Task) {
     chunksize := WINDOW_HEIGHT / n_chunks
     firstrow : i32 = i32(chunk * chunksize)
     lastrow : i32 = i32((chunk + 1) * chunksize)
-    render(info.world, info.image, firstrow, lastrow)    
+    render(info.world, info.image, firstrow, lastrow)
+    rl.UpdateTexture(info.texture^, info.image^.data)
+
     fmt.printf("working on thread %d of %d \n", t.user_index, info.numthreads)
     fmt.printf("firstrow %d lastrow %d \n", firstrow, lastrow)
 }
@@ -87,6 +90,7 @@ main :: proc() {
     tdata.numthreads = 32
     tdata.world = world
     tdata.image = &img
+    tdata.texture = &render_tex
 
     // THREADING
     threadPool :thread.Pool
@@ -198,7 +202,7 @@ render :: proc(world : hittable_list, img : ^rl.Image, firstrow : i32 = 0, lastr
     cam : camera
     // Camera
     max_depth           : i32 = 9
-    samples_per_pixel   : i32 = 120
+    samples_per_pixel   : i32 = 44
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)
