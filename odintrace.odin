@@ -4,6 +4,12 @@ import "core:fmt"
 import "core:os"
 import "core:math"
 import "core:math/rand"
+
+import "core:sync"
+import "core:thread"
+import "core:mem"
+import "core:mem/virtual"
+
 import rl "vendor:raylib"
 
 WINDOW_WIDTH  :: 1024
@@ -50,15 +56,55 @@ hittable_list :: struct {
     bbox : aabb,
 }
 
+threadinfo :: struct  {
+    numthreads : int,
+    world : hittable_list,
+    image : ^rl.Image,
+}
+
+worker :: proc (t: thread.Task) {
+    info := cast(^threadinfo)(t.data)
+    chunk := t.user_index
+    n_chunks := info.numthreads
+    chunksize := WINDOW_HEIGHT / n_chunks
+    firstrow : i32 = i32(chunk * chunksize)
+    lastrow : i32 = i32((chunk + 1) * chunksize)
+    render(info.world, info.image, firstrow, lastrow)    
+    fmt.printf("working on thread %d of %d \n", t.user_index, info.numthreads)
+    fmt.printf("firstrow %d lastrow %d \n", firstrow, lastrow)
+}
+
 main :: proc() {
 	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Odini")
 	defer rl.CloseWindow()
-	render_tex : rl.Texture
+    img : rl.Image = rl.GenImageColor(WINDOW_WIDTH, WINDOW_HEIGHT, rl.BLACK)
+	render_tex : rl.Texture  = rl.LoadTextureFromImage(img)
 
     texture_lib_load()
-
     world := setup_world()
-	render_tex = render(world)
+
+    tdata : threadinfo
+    tdata.numthreads = 32
+    tdata.world = world
+    tdata.image = &img
+
+    // THREADING
+    threadPool :thread.Pool
+    thread.pool_init(&threadPool, context.allocator, tdata.numthreads)
+    thread.pool_start(&threadPool)
+    defer thread.pool_destroy(&threadPool)
+
+    client_arena :virtual.Arena
+    arena_allocator_error := virtual.arena_init_growing(&client_arena, 1 * mem.Byte)
+    client_allocator := virtual.arena_allocator(&client_arena)
+    for i := 0; i < tdata.numthreads; i += 1 {
+        thread.pool_add_task(&threadPool, client_allocator, worker, &tdata, i)
+    }
+    thread.pool_finish(&threadPool)
+    /////////
+    
+ 	//render(world, &img)
+    rl.UpdateTexture(render_tex, img.data)
 
 	rl.SetTargetFPS(60)      
 	for !rl.WindowShouldClose() { // Detect window close button or ESC key
@@ -143,17 +189,16 @@ hit_sphere :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
     return true
 }
 
-render :: proc(world : hittable_list) -> rl.Texture {
+render :: proc(world : hittable_list, img : ^rl.Image, firstrow : i32 = 0, lastrow: i32 = WINDOW_HEIGHT ) {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
     g_debug_line = 0 // keeping count of how many debug lines have been drawn onto the screen
 
-    img : rl.Image = rl.GenImageColor(WINDOW_WIDTH, WINDOW_HEIGHT, rl.BLACK)
    
     cam : camera
     // Camera
     max_depth           : i32 = 9
-    samples_per_pixel   : i32 = 8
+    samples_per_pixel   : i32 = 120
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
     vfov				: f32 = 30.0
     theta   			: f32 = math.to_radians_f32(vfov)
@@ -191,8 +236,8 @@ render :: proc(world : hittable_list) -> rl.Texture {
     cam.defocus_disk_u = u * cam.defocus_radius
     cam.defocus_disk_v = v * cam.defocus_radius
 
-    render_tex : rl.Texture = rl.LoadTextureFromImage(img)
-    for h : i32 = 0; h < WINDOW_HEIGHT; h += 1 {
+    //render_tex : rl.Texture = rl.LoadTextureFromImage(img)
+    for h : i32 = firstrow; h < lastrow; h += 1 {
         for w : i32 = 0; w < WINDOW_WIDTH; w += 1 {
         	pixel_color : rl.Vector3 = {0,0,0}
         	for sample : i32 = 0; sample < samples_per_pixel; sample += 1 {
@@ -200,14 +245,14 @@ render :: proc(world : hittable_list) -> rl.Texture {
         		pixel_color += ray_color(r, max_depth, world) * pixel_samples_scale
         	}
         	rl_color : rl.Color = rl.ColorFromNormalized({linear_to_gamma(pixel_color.x), linear_to_gamma(pixel_color.y), linear_to_gamma(pixel_color.z), 1.0})
-			rl.ImageDrawPixel(&img, w, h, rl_color)
+			rl.ImageDrawPixel(img, w, h, rl_color)
         }
 		//fmt.print(" ", h)
-        rl.UpdateTexture(render_tex, img.data)
-        draw(render_tex)
+        //rl.UpdateTexture(render_tex, img.data)
+        //draw(render_tex)
         if rl.WindowShouldClose() do os.exit(0)
     }
-    return render_tex
+    //return render_tex
 }
 
 get_ray :: proc(cam : camera, w : i32, h : i32) -> ray {
