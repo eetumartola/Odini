@@ -41,7 +41,8 @@ hittable :: struct {
 	name : string,
 	data : sphere,
 	hit_func : proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool,
-    bbox_func : proc(s : sphere),
+    bbox_func : proc(s : sphere) -> aabb,
+    bbox : aabb,
 }
 
 hittable_list :: struct {

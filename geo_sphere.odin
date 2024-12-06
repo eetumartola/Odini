@@ -44,3 +44,11 @@ hit_sphere :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> 
 
     return true
 }
+
+bbox_sphere :: proc(s : sphere) -> aabb {
+	rvec : rl.Vector3 = {s.radius, s.radius, s.radius, }
+	bbox1 : aabb = aabb_create_2points(ray_at(s.center, 0) - rvec, ray_at(s.center, 0) + rvec)
+	bbox2 : aabb = aabb_create_2points(ray_at(s.center, 1) - rvec, ray_at(s.center, 1) + rvec)
+	bbox: aabb = aabb_create_2boxes(bbox1, bbox2)
+	return bbox
+}

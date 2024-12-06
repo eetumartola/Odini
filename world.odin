@@ -71,6 +71,7 @@ setup_world :: proc() -> hittable_list {
             radius = 0.5,
             mat = clay},
 		hit_func = hit_sphere,
+		bbox_func = bbox_sphere,
 	}
 	sphere_glass_outer : hittable = {
 		name = "sphere_go",
@@ -79,6 +80,7 @@ setup_world :: proc() -> hittable_list {
             radius = 0.5,
             mat = glass},
 		hit_func = hit_sphere,
+		bbox_func = bbox_sphere,
 	}
 	sphere_glass_inner : hittable = {
 		name = "sphere_gi",
@@ -87,6 +89,7 @@ setup_world :: proc() -> hittable_list {
             radius = 0.4,
             mat = glass_air},
 		hit_func = hit_sphere,
+		bbox_func = bbox_sphere,
 	}
 	sphere_metal : hittable = {
 		name = "sphere",
@@ -95,6 +98,7 @@ setup_world :: proc() -> hittable_list {
             radius = 0.5,
             mat =  metal},
 		hit_func = hit_sphere,
+		bbox_func = bbox_sphere,
 	}
 	sphere_big : hittable = {
 		name = "sphere_big",
@@ -103,16 +107,21 @@ setup_world :: proc() -> hittable_list {
             radius = 100.0,
             mat = ground},
 		hit_func = hit_sphere,
+		bbox_func = bbox_sphere,
 	}
 
 	world : hittable_list
-	//world.objects : [dynamic]hittable
-	append(&world.objects, sphere1)
-	append(&world.objects, sphere_glass_outer)
-	append(&world.objects, sphere_glass_inner)
-	append(&world.objects, sphere_metal)
-	append(&world.objects, sphere_big)
+
+	world_add(&world, &sphere1)
+	world_add(&world, &sphere_glass_outer)
+	world_add(&world, &sphere_glass_inner)
+	world_add(&world, &sphere_metal)
+	world_add(&world, &sphere_big)
 
     return world
 }
 
+world_add :: proc(world : ^hittable_list, o : ^hittable) {
+	append(&world.objects, o^)
+	o^.bbox = o^.bbox_func(o^.data)
+}
