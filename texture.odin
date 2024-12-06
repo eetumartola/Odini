@@ -36,12 +36,15 @@ texture_image :: proc(tex : texture, u : f32, v : f32, p : rl.Vector3) -> rl.Vec
 	if tex.image_name == "" do return {0,1,1}
 
 	tex_image : rl.Image = texture_lib[tex.image_name]
+	// wrap before clamp
+	_, u2 := math.modf_f32(u)
+	_, v2 := math.modf_f32(v) 
 	// Clamp input texture coordinates to [0,1] x [1,0]
-	u2 : f32 = clamp(u, 0.0, 1.0)
-	v2 : f32 = 1.0 - clamp(v, 0.0, 1.0)  // Flip V to image coordinates
+	u2 = clamp(u2, 0.0, 1.0)
+	v2 = 1.0 - clamp(v2, 0.0, 1.0)  // Flip V to image coordinates
 	
-	i : i32 = i32(u2 * f32(tex_image.width))
-	j : i32 = i32(v2 * f32(tex_image.height))
+	i : i32 = i32(math.floor_f32(u2 * f32(tex_image.width-1)))
+	j : i32 = i32(math.floor_f32(v2 * f32(tex_image.height-1)))
 	pixel_i : rl.Color = rl.GetImageColor(tex_image, i, j)
 
 	pixel_f : rl.Vector4 = rl.ColorNormalize(pixel_i)

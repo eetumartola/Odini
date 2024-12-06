@@ -37,13 +37,6 @@ hit_record :: struct {
     v : f32,
 }
 
-sphere :: struct {
-	center : ray,
-	radius : f32,
-	mat : material,
-    bbox : aabb,
-}
-
 hittable :: struct {
 	name : string,
 	data : sphere,
@@ -71,10 +64,9 @@ worker :: proc (t: thread.Task) {
     firstrow : i32 = i32(chunk * chunksize)
     lastrow : i32 = i32((chunk + 1) * chunksize)
     render(info.world, info.image, firstrow, lastrow)
-    rl.UpdateTexture(info.texture^, info.image^.data)
-
-    fmt.printf("working on thread %d of %d \n", t.user_index, info.numthreads)
-    fmt.printf("firstrow %d lastrow %d \n", firstrow, lastrow)
+    //rl.UpdateTexture(info.texture^, info.image^.data)
+    //fmt.printf("working on thread %d of %d \n", t.user_index, info.numthreads)
+    //fmt.printf("firstrow %d lastrow %d \n", firstrow, lastrow)
 }
 
 main :: proc() {
@@ -160,39 +152,6 @@ ray_color :: proc(r : ray, depth : i32, world : hittable_list) -> rl.Vector3 {
 	return col
 }
 
-hit_sphere :: proc( s: sphere, r: ray, ray_t : interval, rec : ^hit_record ) -> bool {
-    current_center : rl.Vector3 = ray_at(s.center, r.time)
-    oc : rl.Vector3 = current_center - r.orig
-    a  : f32 = rl.Vector3LengthSqr(r.dir)
-    h  : f32 = rl.Vector3DotProduct(r.dir, oc)
-    c  : f32 = rl.Vector3LengthSqr(oc) - s.radius * s.radius
-    discriminant : f32 = h * h - a * c
-
-    if (discriminant < 0.0) {
-        return false
-    }
-    sqrtd : f32 = math.sqrt_f32(discriminant)
-
-    // Find the nearest root that lies in the acceptable range.
-    root : f32 = (h - sqrtd) / a;
-    if (!interval_surrounds(ray_t, root)) {
-        root = (h + sqrtd) / a;
-        if (!interval_surrounds(ray_t, root)) {
-            return false
-        }
-    }
-
-    rec.t = root
-    rec.p = ray_at(r, rec.t)
-    outward_normal : rl.Vector3 = (rec.p - current_center) / s.radius
-    rec.front_face = rl.Vector3DotProduct(r.dir, outward_normal) < 0.0
-    rec.normal = rec.front_face ? outward_normal : -outward_normal
-    rec.u, rec.v = get_sphere_uv(outward_normal)
-    rec.mat = s.mat
-
-    return true
-}
-
 render :: proc(world : hittable_list, img : ^rl.Image, firstrow : i32 = 0, lastrow: i32 = WINDOW_HEIGHT ) {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
@@ -202,9 +161,9 @@ render :: proc(world : hittable_list, img : ^rl.Image, firstrow : i32 = 0, lastr
     cam : camera
     // Camera
     max_depth           : i32 = 9
-    samples_per_pixel   : i32 = 44
+    samples_per_pixel   : i32 = 32
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
-    vfov				: f32 = 30.0
+    vfov				: f32 = 20.0
     theta   			: f32 = math.to_radians_f32(vfov)
     h 					: f32 = math.tan_f32(theta / 2.0)
     lookfrom            : rl.Vector3 = {-2.0, 2.0, 1.0}  // Point camera is looking from
