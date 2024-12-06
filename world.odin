@@ -122,6 +122,10 @@ setup_world :: proc() -> hittable_list {
 }
 
 world_add :: proc(world : ^hittable_list, o : ^hittable) {
+	// add hittable to hworld
 	append(&world.objects, o^)
+	// calculate hittable bbox
 	o^.bbox = o^.bbox_func(o^.data)
+	// add hitbale bbox to world bbox
+	world^.bbox = aabb_create_2boxes(world^.bbox, o^.bbox)
 }

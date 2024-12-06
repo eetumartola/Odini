@@ -43,7 +43,7 @@ axis_interval :: proc(bbox : aabb, n : i32) -> interval {
     return bbox.x
 }
 
-//should we return ray_t as well?
+//should we return ray_t as well? should we carry hit_record through this?
 hit_aabb :: proc(bbox : aabb, r : ray, ray_t : ^interval) -> bool {
     ray_orig : rl.Vector3 = r.orig
     ray_dir  : rl.Vector3 = r.dir

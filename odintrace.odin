@@ -135,7 +135,7 @@ ray_color :: proc(r : ray, depth : i32, world : hittable_list) -> rl.Vector3 {
 		return {0,0,0}
 	}
 	rec : hit_record
-	if (hit_world(world, r, interval{0.0002, 10000000.0}, &rec)) {
+	if (hit_world(world, r, interval{0.0001, 10000000.0}, &rec)) {
 		scattered : ray
 		attenuation : rl.Vector3
 		mat_this := rec.mat
@@ -162,12 +162,12 @@ render :: proc(world : hittable_list, img : ^rl.Image, firstrow : i32 = 0, lastr
     cam : camera
     // Camera
     max_depth           : i32 = 9
-    samples_per_pixel   : i32 = 32
+    samples_per_pixel   : i32 = 66
     pixel_samples_scale : f32 = 1.0 / f32(samples_per_pixel)
-    vfov				: f32 = 20.0
+    vfov				: f32 = 27.0
     theta   			: f32 = math.to_radians_f32(vfov)
     h 					: f32 = math.tan_f32(theta / 2.0)
-    lookfrom            : rl.Vector3 = {-2.0, 2.0, 1.0}  // Point camera is looking from
+    lookfrom            : rl.Vector3 = {-2.5, 0.6, 1.0}  // Point camera is looking from
     lookat              : rl.Vector3 = {0.0, 0.0, -1.0}  // Point camera is looking at
     vup                 : rl.Vector3 = {0.0, 1.0, 0.0}   // Camera-relative "up" direction
     defocus_angle       : f32 = 1.0;  // Variation angle of rays through each pixel
